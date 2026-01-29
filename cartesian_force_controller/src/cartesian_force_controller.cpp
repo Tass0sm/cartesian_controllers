@@ -60,8 +60,9 @@ CartesianForceController::on_init()
     return ret;
   }
 
-  auto_declare<std::string>("ft_sensor_ref_link", "");
-  auto_declare<bool>("hand_frame_control", true);
+  auto node = get_node();
+  node->declare_parameter<std::string>("ft_sensor_ref_link", "");
+  node->declare_parameter<bool>("hand_frame_control", true);
 
   return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
 }

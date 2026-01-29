@@ -62,16 +62,18 @@ CartesianComplianceController::on_init()
     return TYPE::ERROR;
   }
 
-  auto_declare<std::string>("compliance_ref_link", "");
+  auto node = get_node();
+
+  node->declare_parameter<std::string>("compliance_ref_link", "");
 
   constexpr double default_lin_stiff = 500.0;
   constexpr double default_rot_stiff = 50.0;
-  auto_declare<double>("stiffness.trans_x", default_lin_stiff);
-  auto_declare<double>("stiffness.trans_y", default_lin_stiff);
-  auto_declare<double>("stiffness.trans_z", default_lin_stiff);
-  auto_declare<double>("stiffness.rot_x", default_rot_stiff);
-  auto_declare<double>("stiffness.rot_y", default_rot_stiff);
-  auto_declare<double>("stiffness.rot_z", default_rot_stiff);
+  node->declare_parameter<double>("stiffness.trans_x", default_lin_stiff);
+  node->declare_parameter<double>("stiffness.trans_y", default_lin_stiff);
+  node->declare_parameter<double>("stiffness.trans_z", default_lin_stiff);
+  node->declare_parameter<double>("stiffness.rot_x", default_rot_stiff);
+  node->declare_parameter<double>("stiffness.rot_y", default_rot_stiff);
+  node->declare_parameter<double>("stiffness.rot_z", default_rot_stiff);
 
   return TYPE::SUCCESS;
 }

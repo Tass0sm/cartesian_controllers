@@ -91,15 +91,16 @@ CartesianControllerBase::on_init()
 {
   if (!m_initialized)
   {
-    auto_declare<std::string>("ik_solver", "forward_dynamics");
-    auto_declare<std::string>("robot_description", "");
-    auto_declare<std::string>("robot_base_link", "");
-    auto_declare<std::string>("end_effector_link", "");
-    auto_declare<std::vector<std::string>>("joints", std::vector<std::string>());
-    auto_declare<std::vector<std::string>>("command_interfaces", std::vector<std::string>());
-    auto_declare<double>("solver.error_scale", 1.0);
-    auto_declare<int>("solver.iterations", 1);
-    auto_declare<bool>("solver.publish_state_feedback", false);
+    auto node = get_node();
+    node->declare_parameter<std::string>("ik_solver", "forward_dynamics");
+    node->declare_parameter<std::string>("robot_description", "");
+    node->declare_parameter<std::string>("robot_base_link", "");
+    node->declare_parameter<std::string>("end_effector_link", "");
+    node->declare_parameter<std::vector<std::string>>("joints", std::vector<std::string>());
+    node->declare_parameter<std::vector<std::string>>("command_interfaces", std::vector<std::string>());
+    node->declare_parameter<double>("solver.error_scale", 1.0);
+    node->declare_parameter<int>("solver.iterations", 1);
+    node->declare_parameter<bool>("solver.publish_state_feedback", false);
     m_initialized = true;
   }
   return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;

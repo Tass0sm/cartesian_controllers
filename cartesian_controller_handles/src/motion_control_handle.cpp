@@ -126,10 +126,12 @@ controller_interface::InterfaceConfiguration MotionControlHandle::state_interfac
 rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn
 MotionControlHandle::on_init()
 {
-  auto_declare<std::string>("robot_description", "");
-  auto_declare<std::string>("robot_base_link", "");
-  auto_declare<std::string>("end_effector_link", "");
-  auto_declare<std::vector<std::string> >("joints", std::vector<std::string>());
+  auto node = get_node();
+
+  node->declare_parameter<std::string>("robot_description", "");
+  node->declare_parameter<std::string>("robot_base_link", "");
+  node->declare_parameter<std::string>("end_effector_link", "");
+  node->declare_parameter<std::vector<std::string>>("joints", {});
 
   return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
 }
