@@ -46,6 +46,8 @@
 #include <cartesian_motion_controller/cartesian_motion_controller.h>
 
 #include <controller_interface/controller_interface.hpp>
+#include <geometry_msgs/msg/twist_stamped.hpp>
+#include <mutex>
 
 namespace cartesian_compliance_controller
 {
@@ -95,14 +97,21 @@ public:
 
 private:
   /**
-     * @brief Compute the net force of target wrench and stiffness-related pose offset
-     *
-     * @return The remaining error wrench, given in robot base frame
-     */
+   * @brief Compute the net force of target wrench and stiffness-related pose offset
+   *
+   * @return The remaining error wrench, given in robot base frame
+   */
   ctrl::Vector6D computeComplianceError();
 
   ctrl::Matrix6D m_stiffness;
+  ctrl::Matrix6D m_damping;
   std::string m_compliance_ref_link;
+
+  // --- Velocity feedforward members ---
+  std::mutex m_twist_mutex;
+  ctrl::Vector6D m_target_twist = ctrl::Vector6D::Zero();
+  bool m_twist_received = false;  // Don't apply damping until first message
+  rclcpp::Subscription<geometry_msgs::msg::TwistStamped>::SharedPtr m_target_twist_sub;
 };
 
 }  // namespace cartesian_compliance_controller
