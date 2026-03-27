@@ -32,4 +32,12 @@
     </description>
   </class>
 
+  <class name="placo"
+         type="cartesian_controller_base::PlaCoSolver"
+         base_class_type="cartesian_controller_base::IKSolver">
+    <description>
+      A PlaCo-based IK solver (https://github.com/Rhoban/placo)
+    </description>
+  </class>
+
 </library>

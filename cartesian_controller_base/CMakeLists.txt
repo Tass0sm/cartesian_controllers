@@ -38,6 +38,8 @@ find_package(trajectory_msgs REQUIRED)
 find_package(pluginlib REQUIRED)
 find_package(urdf REQUIRED)
 find_package(realtime_tools REQUIRED)
+find_package(placo REQUIRED)
+find_package(pinocchio REQUIRED)
 
 
 # Convenience variable for dependencies
@@ -87,12 +89,15 @@ add_library(ik_solvers SHARED
   src/JacobianTransposeSolver.cpp
   src/DampedLeastSquaresSolver.cpp
   src/SelectivelyDampedLeastSquaresSolver.cpp
+  src/PlaCoSolver.cpp
 )
 
 target_include_directories(ik_solvers
   PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>
+    placo::libplaco
+    ${PINOCCHIO_INCLUDE_DIRS}
     ${CMAKE_BINARY_DIR}  # ROS2VersionConfig.h
 )
 
