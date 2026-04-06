@@ -14,6 +14,7 @@
 
 #include <placo/model/robot_wrapper.h>
 #include <placo/kinematics/kinematics_solver.h>
+#include <placo/dynamics/frame_task.h>
 #include <kdl/jacobian.hpp>
 #include <memory>
 
@@ -67,8 +68,7 @@ public:
 private:
   std::unique_ptr<placo::model::RobotWrapper> m_robot;
   std::unique_ptr<placo::kinematics::KinematicsSolver> m_solver;
-  std::shared_ptr<KDL::ChainJntToJacSolver> m_jnt_jacobian_solver;
-  KDL::Jacobian m_jnt_jacobian;
+  placo::kinematics::FrameTask m_ee_task;
 };
 
 }  // namespace cartesian_controller_base

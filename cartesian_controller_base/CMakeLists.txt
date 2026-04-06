@@ -96,9 +96,12 @@ target_include_directories(ik_solvers
   PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>
-    placo::libplaco
     ${PINOCCHIO_INCLUDE_DIRS}
     ${CMAKE_BINARY_DIR}  # ROS2VersionConfig.h
+)
+
+target_link_libraries(ik_solvers
+  placo::libplaco
 )
 
 # Prevent pluginlib from using boost
