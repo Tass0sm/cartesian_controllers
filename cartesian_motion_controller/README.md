@@ -24,6 +24,10 @@ The interpolation behavior can be tweaked by the following parameters:
   *overall* responsiveness with this parameter.
 * The number of internal `iterations` per robot control cycle. The higher this
   value, the more does the controller become an inverse kinematics solver for accurate tracking.
+* `synchronize_joint_positions` (default `true`) resets the controller's internal model to the
+  measured joint positions every control cycle. Set it to `false` for robots whose joints lag
+  noticeably behind their commands (e.g. soft PD position control): the internal model is then
+  only initialized from the robot on activation, and the joint controllers close the loop.
 
 
 ## Getting Started

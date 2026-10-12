@@ -123,7 +123,10 @@ controller_interface::return_type CartesianForceController::update(const rclcpp:
                                                                    const rclcpp::Duration & period)
 {
   // Synchronize the internal model and the real robot
-  Base::m_ik_solver->synchronizeJointPositions(Base::m_joint_state_pos_handles);
+  if (Base::m_synchronize_joint_positions)
+  {
+    Base::m_ik_solver->synchronizeJointPositions(Base::m_joint_state_pos_handles);
+  }
 
   // Control the robot motion in such a way that the resulting net force
   // vanishes.  The internal 'simulation time' is deliberately independent of

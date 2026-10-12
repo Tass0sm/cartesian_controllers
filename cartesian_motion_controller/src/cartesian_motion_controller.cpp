@@ -103,7 +103,10 @@ controller_interface::return_type CartesianMotionController::update(const rclcpp
                                                                     const rclcpp::Duration & period)
 {
   // Synchronize the internal model and the real robot
-  Base::m_ik_solver->synchronizeJointPositions(Base::m_joint_state_pos_handles);
+  if (Base::m_synchronize_joint_positions)
+  {
+    Base::m_ik_solver->synchronizeJointPositions(Base::m_joint_state_pos_handles);
+  }
 
   // Forward Dynamics turns the search for the according joint motion into a
   // control process. So, we control the internal model until we meet the

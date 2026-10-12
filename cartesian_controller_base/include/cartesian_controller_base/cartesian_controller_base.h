@@ -193,6 +193,15 @@ protected:
   std::string m_robot_base_link;
   int m_iterations;
 
+  /**
+     * @brief Whether to reset the internal model to the measured joint positions every cycle
+     *
+     * If false, the internal model is only set from the robot on activation and
+     * then evolves on its own. Use this for compliant or slow joint-level control,
+     * where the measured positions lag the commands.
+     */
+  bool m_synchronize_joint_positions;
+
   std::vector<std::reference_wrapper<hardware_interface::LoanedStateInterface>>
     m_joint_state_pos_handles;
 

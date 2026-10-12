@@ -100,6 +100,7 @@ CartesianControllerBase::on_init()
     node->declare_parameter<std::vector<std::string>>("command_interfaces", std::vector<std::string>());
     node->declare_parameter<double>("solver.error_scale", 1.0);
     node->declare_parameter<int>("solver.iterations", 1);
+    node->declare_parameter<bool>("solver.synchronize_joint_positions", true);
     node->declare_parameter<bool>("solver.publish_state_feedback", false);
     m_initialized = true;
   }
@@ -216,6 +217,8 @@ CartesianControllerBase::on_configure(const rclcpp_lifecycle::State & previous_s
   m_forward_kinematics_solver.reset(new KDL::TreeFkSolverPos_recursive(tmp));
   m_iterations = get_node()->get_parameter("solver.iterations").as_int();
   m_error_scale = get_node()->get_parameter("solver.error_scale").as_double();
+  m_synchronize_joint_positions =
+    get_node()->get_parameter("solver.synchronize_joint_positions").as_bool();
 
   // Initialize Cartesian pd controllers
   m_spatial_controller.init(get_node());
