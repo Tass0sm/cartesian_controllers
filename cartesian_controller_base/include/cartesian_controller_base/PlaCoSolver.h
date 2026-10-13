@@ -10,30 +10,42 @@
 #ifndef PLACO_SOLVER_H_INCLUDED
 #define PLACO_SOLVER_H_INCLUDED
 
+#include <cartesian_controller_base/AvoidObstaclesConstraint.h>
 #include <cartesian_controller_base/IKSolver.h>
 
-#include <placo/model/robot_wrapper.h>
-#include <placo/kinematics/kinematics_solver.h>
-#include <placo/dynamics/frame_task.h>
-#include <kdl/jacobian.hpp>
+#include <chrono>
+#include <map>
 #include <memory>
+#include <placo/kinematics/frame_task.h>
+#include <placo/kinematics/joints_task.h>
+#include <placo/kinematics/kinematics_solver.h>
+#include <placo/model/robot_wrapper.h>
+#include <realtime_tools/realtime_buffer.hpp>
+#include <realtime_tools/realtime_publisher.hpp>
+#include <string>
+#include <utility>
+#include <vector>
+#include <visualization_msgs/msg/marker_array.hpp>
 
 namespace cartesian_controller_base
 {
 /**
-   * \brief A Jacobian transpose IK solver for Cartesian controllers
-   *
-   *
- *  The resulting joint accelerations are computed according to
- *  \f$ \ddot{q} = J^T f \f$
- *  Where \f$ J \f$ denotes the manipulator's joint Jacobian and \f$ f \f$ is
- *  the applied force to the end effector.
- *  This implements the dynamical system from Wolovich and Elliot
- *  https://ieeexplore.ieee.org/abstract/document/4048118 with \f$ \alpha = 1 \f$ with
- *  the difference that this implementation does not accumulate velocity during time integration.
- *  The system always starts anew in each control cycle with instantaneous
- *  accelerations, having the benefit that no damping is required to avoid overshooting.
-   */
+ * \brief A PlaCo-based IK solver for Cartesian controllers
+ *
+ * Each step solves a QP for the joint motion that moves the end effector by
+ * the commanded twist, subject to joint limits and obstacle avoidance. The
+ * URDF in \a robot_description may contain more joints than the controller's
+ * chain; those (and the floating base) are held fixed.
+ *
+ * A low-weight posture task (\a placo.posture.*) keeps the redundant joints near
+ * a nominal posture, so they don't drift into joint limits.
+ *
+ * Obstacle avoidance (optional): the robot's links are approximated by
+ * spheres (parameters \a placo.collision_spheres.*), and obstacles are boxes
+ * and spheres received as a visualization_msgs/MarkerArray on
+ * \a <controller>/obstacles, in the robot base frame. The spheres are
+ * published on \a <controller>/collision_spheres for checking in RViz.
+ */
 class PlaCoSolver : public IKSolver
 {
 public:
@@ -44,7 +56,7 @@ public:
      * \brief Compute joint target commands with PlaCo
      *
      * \param period The duration in sec for this simulation step
-     * \param net_force The applied net force, expressed in the root frame
+     * \param net_force The commanded twist, expressed in the robot base frame
      *
      * \return A point holding positions, velocities and accelerations of each joint
      */
@@ -60,15 +72,37 @@ public:
      *
      * \return True, if everything went well
      */
-
   bool init(std::shared_ptr<rclcpp_lifecycle::LifecycleNode> /*nh*/, const KDL::Chain & chain,
             const KDL::JntArray & upper_pos_limits,
             const KDL::JntArray & lower_pos_limits) override;
 
 private:
+  using Obstacles = std::vector<Obstacle>;  // In the robot base frame
+
+  bool initObstacleAvoidance();
+  void obstaclesCallback(const visualization_msgs::msg::MarkerArray::SharedPtr msg);
+  void publishCollisionSpheres();
+
   std::unique_ptr<placo::model::RobotWrapper> m_robot;
   std::unique_ptr<placo::kinematics::KinematicsSolver> m_solver;
   placo::kinematics::FrameTask m_ee_task;
+  placo::kinematics::JointsTask * m_posture_task = nullptr;  // Owned by m_solver
+  bool m_posture_from_start = false;  // No configured posture: use the one at activation
+  AvoidObstaclesConstraint * m_obstacle_constraint = nullptr;  // Owned by m_solver
+
+  std::vector<std::string> m_joint_names;  // The chain's joints, in order
+  std::string m_base_frame;
+  std::string m_ee_frame;
+
+  // Obstacles by (namespace, id), maintained in the subscriber callback
+  std::map<std::pair<std::string, int>, Obstacle> m_obstacle_markers;
+  realtime_tools::RealtimeBuffer<Obstacles> m_obstacles_buffer;
+  rclcpp::Subscription<visualization_msgs::msg::MarkerArray>::SharedPtr m_obstacles_sub;
+
+  std::shared_ptr<rclcpp::Publisher<visualization_msgs::msg::MarkerArray>> m_spheres_pub;
+  std::unique_ptr<realtime_tools::RealtimePublisher<visualization_msgs::msg::MarkerArray>>
+    m_spheres_rt_pub;
+  std::chrono::steady_clock::time_point m_last_spheres_publish;
 };
 
 }  // namespace cartesian_controller_base

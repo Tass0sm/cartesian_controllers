@@ -40,6 +40,7 @@ find_package(urdf REQUIRED)
 find_package(realtime_tools REQUIRED)
 find_package(placo REQUIRED)
 find_package(pinocchio REQUIRED)
+find_package(visualization_msgs REQUIRED)
 
 
 # Convenience variable for dependencies
@@ -90,6 +91,7 @@ add_library(ik_solvers SHARED
   src/DampedLeastSquaresSolver.cpp
   src/SelectivelyDampedLeastSquaresSolver.cpp
   src/PlaCoSolver.cpp
+  src/AvoidObstaclesConstraint.cpp
 )
 
 target_include_directories(ik_solvers
@@ -110,6 +112,7 @@ target_compile_definitions(${PROJECT_NAME} PUBLIC "PLUGINLIB__DISABLE_BOOST_FUNC
 ament_target_dependencies(ik_solvers
         ${${PROJECT_NAME}_EXPORTED_TARGETS}
         ${THIS_PACKAGE_INCLUDE_DEPENDS}
+        visualization_msgs
 )
 
 

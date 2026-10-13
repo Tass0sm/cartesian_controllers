@@ -135,6 +135,8 @@ CartesianControllerBase::on_configure(const rclcpp_lifecycle::State & previous_s
 
 #if defined CARTESIAN_CONTROLLERS_JAZZY
   m_robot_description = this->get_robot_description();
+  // IK solvers that need the URDF (e.g. PlaCo) read it from this parameter
+  get_node()->set_parameter(rclcpp::Parameter("robot_description", m_robot_description));
 #else
   m_robot_description = get_node()->get_parameter("robot_description").as_string();
 #endif
