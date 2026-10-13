@@ -25,7 +25,9 @@
  *     placo:
  *       posture:
  *         positions: []  # nominal posture of the chain's joints; empty: the one at activation
- *         weight: 0.001  # relative to the end effector task (1.0)
+ *         weight: 0.00001  # relative to the end effector task (1.0); keep it small: the
+ *                          # end effector task only asks for a small step each iteration, so
+ *                          # a larger weight pulls the hand visibly away from its target
  *       # Optional obstacle avoidance. Spheres approximating the robot, one entry per sphere:
  *       collision_spheres:
  *         frames: ["wrist_link", "hand_link"]
@@ -182,7 +184,7 @@ bool PlaCoSolver::init(std::shared_ptr<rclcpp_lifecycle::LifecycleNode> nh,
 
     const auto posture =
       auto_declare<std::vector<double>>("placo.posture.positions", std::vector<double>());
-    const double posture_weight = auto_declare<double>("placo.posture.weight", 0.001);
+    const double posture_weight = auto_declare<double>("placo.posture.weight", 0.00001);
     if (!posture.empty() && static_cast<int>(posture.size()) != m_number_joints)
     {
       RCLCPP_ERROR(nh->get_logger(), "PlaCo: placo.posture.positions needs %d values, got %zu",
