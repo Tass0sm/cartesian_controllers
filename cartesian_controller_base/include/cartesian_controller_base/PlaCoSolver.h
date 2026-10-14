@@ -45,6 +45,10 @@ namespace cartesian_controller_base
  * and spheres received as a visualization_msgs/MarkerArray on
  * \a <controller>/obstacles, in the robot base frame. The spheres are
  * published on \a <controller>/collision_spheres for checking in RViz.
+ *
+ * Self collisions (optional): boxes fixed to links of the robot (parameters
+ * \a placo.self_collision.*, e.g. the torso) are kept clear of the same spheres,
+ * like the obstacles but with their own margin. They are published with the spheres.
  */
 class PlaCoSolver : public IKSolver
 {
@@ -79,7 +83,16 @@ public:
 private:
   using Obstacles = std::vector<Obstacle>;  // In the robot base frame
 
+  // A box fixed to a link of the robot, kept clear of the collision spheres
+  struct BodyBox
+  {
+    std::string frame;
+    placo::model::RobotWrapper::FrameIndex frame_index;
+    Obstacle box;  // T_world_obstacle is the pose in the frame
+  };
+
   bool initObstacleAvoidance();
+  bool initSelfCollision();
   void obstaclesCallback(const visualization_msgs::msg::MarkerArray::SharedPtr msg);
   void publishCollisionSpheres();
 
@@ -89,6 +102,8 @@ private:
   placo::kinematics::JointsTask * m_posture_task = nullptr;  // Owned by m_solver
   bool m_posture_from_start = false;  // No configured posture: use the one at activation
   AvoidObstaclesConstraint * m_obstacle_constraint = nullptr;  // Owned by m_solver
+  std::vector<BodyBox> m_body_boxes;
+  AvoidObstaclesConstraint * m_self_constraint = nullptr;  // Owned by m_solver
 
   std::vector<std::string> m_joint_names;  // The chain's joints, in order
   std::string m_base_frame;

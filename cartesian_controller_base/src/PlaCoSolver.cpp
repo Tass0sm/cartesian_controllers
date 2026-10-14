@@ -39,6 +39,13 @@
  *         gain: 0.1      # fraction of the clearance one IK step may use, in (0, 1]
  *         hard: true     # false: soft constraint with weight `weight`
  *         weight: 1000.0
+ *       # Optional self collision avoidance: boxes fixed to links of the robot, which the
+ *       # collision spheres keep clear of like obstacles (same trigger, gain, hard and weight).
+ *       self_collision:
+ *         frames: ["torso_link"]
+ *         centers: [0.0, 0.0, 0.15]  # x y z of each box center in its frame
+ *         sizes: [0.15, 0.2, 0.3]    # x y z size of each box, along its frame's axes
+ *         margin: 0.005  # [m] clearance kept from the boxes
  *     ...
  * \endcode
  *
@@ -100,6 +107,14 @@ trajectory_msgs::msg::JointTrajectoryPoint PlaCoSolver::getJointControlCmds(
     {
       m_obstacle_constraint->obstacles[i] = obstacles[i];
       m_obstacle_constraint->obstacles[i].T_world_obstacle = T_world_base * obstacles[i].T_world_obstacle;
+    }
+  }
+  if (m_self_constraint)
+  {
+    for (size_t i = 0; i < m_body_boxes.size(); ++i)
+    {
+      m_self_constraint->obstacles[i].T_world_obstacle =
+        m_robot->get_T_world_frame(m_body_boxes[i].frame_index) * m_body_boxes[i].box.T_world_obstacle;
     }
   }
 
@@ -205,7 +220,7 @@ bool PlaCoSolver::init(std::shared_ptr<rclcpp_lifecycle::LifecycleNode> nh,
     return false;
   }
 
-  return initObstacleAvoidance();
+  return initObstacleAvoidance() && initSelfCollision();
 }
 
 bool PlaCoSolver::initObstacleAvoidance()
@@ -277,6 +292,74 @@ bool PlaCoSolver::initObstacleAvoidance()
   RCLCPP_INFO(m_handle->get_logger(),
               "PlaCo: obstacle avoidance with %zu collision spheres, obstacles on %s/obstacles",
               frames.size(), m_handle->get_name());
+  return true;
+}
+
+bool PlaCoSolver::initSelfCollision()
+{
+  const auto frames =
+    auto_declare<std::vector<std::string>>("placo.self_collision.frames", std::vector<std::string>());
+  const auto centers = auto_declare<std::vector<double>>("placo.self_collision.centers", std::vector<double>());
+  const auto sizes = auto_declare<std::vector<double>>("placo.self_collision.sizes", std::vector<double>());
+  const double margin = auto_declare<double>("placo.self_collision.margin", 0.005);
+
+  if (frames.empty())
+  {
+    return true;
+  }
+  if (!m_obstacle_constraint)
+  {
+    RCLCPP_ERROR(m_handle->get_logger(),
+                 "PlaCo: placo.self_collision needs collision spheres (placo.collision_spheres)");
+    return false;
+  }
+  if (centers.size() != 3 * frames.size() || sizes.size() != 3 * frames.size())
+  {
+    RCLCPP_ERROR(m_handle->get_logger(),
+                 "PlaCo: placo.self_collision needs three centers and three sizes per frame "
+                 "(%zu frames, %zu centers, %zu sizes)",
+                 frames.size(), centers.size(), sizes.size());
+    return false;
+  }
+
+  for (size_t i = 0; i < frames.size(); ++i)
+  {
+    BodyBox body_box;
+    body_box.frame = frames[i];
+    try
+    {
+      body_box.frame_index = m_robot->get_frame_index(frames[i]);
+    }
+    catch (std::exception & e)
+    {
+      RCLCPP_ERROR(m_handle->get_logger(), "PlaCo: self collision frame '%s' isn't in the URDF",
+                   frames[i].c_str());
+      return false;
+    }
+    body_box.box.type = Obstacle::Type::Box;
+    body_box.box.T_world_obstacle =
+      Eigen::Translation3d(centers[3 * i], centers[3 * i + 1], centers[3 * i + 2]) *
+      Eigen::Quaterniond::Identity();
+    body_box.box.half_extents = 0.5 * Eigen::Vector3d(sizes[3 * i], sizes[3 * i + 1], sizes[3 * i + 2]);
+    m_body_boxes.push_back(body_box);
+  }
+
+  // Its own constraint, for its own margin: the arm moves close to the body (e.g. the elbow
+  // along the torso), closer than it should come to obstacles.
+  m_self_constraint = &m_solver->add_constraint(new AvoidObstaclesConstraint());
+  m_self_constraint->configure("self_collision", m_obstacle_constraint->priority,
+                               m_obstacle_constraint->weight);
+  m_self_constraint->margin = margin;
+  m_self_constraint->trigger = m_obstacle_constraint->trigger;
+  m_self_constraint->gain = m_obstacle_constraint->gain;
+  m_self_constraint->spheres = m_obstacle_constraint->spheres;
+  for (const auto & body_box : m_body_boxes)
+  {
+    m_self_constraint->obstacles.push_back(body_box.box);  // Placed in each step
+  }
+
+  RCLCPP_INFO(m_handle->get_logger(), "PlaCo: self collision avoidance with %zu boxes",
+              m_body_boxes.size());
   return true;
 }
 
@@ -371,6 +454,32 @@ void PlaCoSolver::publishCollisionSpheres()
     marker.color.r = 1.0;
     marker.color.g = 0.5;
     marker.color.a = 0.5;
+    msg.markers.push_back(marker);
+  }
+  for (size_t i = 0; i < m_body_boxes.size(); ++i)
+  {
+    visualization_msgs::msg::Marker marker;
+    marker.header.frame_id = m_base_frame;
+    marker.header.stamp = m_handle->now();
+    marker.ns = "self_collision";
+    marker.id = static_cast<int>(i);
+    marker.type = visualization_msgs::msg::Marker::CUBE;
+    const Eigen::Affine3d T = T_base_world * m_robot->get_T_world_frame(m_body_boxes[i].frame_index) *
+                              m_body_boxes[i].box.T_world_obstacle;
+    const Eigen::Quaterniond q(T.linear());
+    marker.pose.position.x = T.translation().x();
+    marker.pose.position.y = T.translation().y();
+    marker.pose.position.z = T.translation().z();
+    marker.pose.orientation.x = q.x();
+    marker.pose.orientation.y = q.y();
+    marker.pose.orientation.z = q.z();
+    marker.pose.orientation.w = q.w();
+    marker.scale.x = 2.0 * m_body_boxes[i].box.half_extents.x();
+    marker.scale.y = 2.0 * m_body_boxes[i].box.half_extents.y();
+    marker.scale.z = 2.0 * m_body_boxes[i].box.half_extents.z();
+    marker.color.b = 1.0;
+    marker.color.g = 0.5;
+    marker.color.a = 0.3;
     msg.markers.push_back(marker);
   }
   m_spheres_rt_pub->try_publish(msg);
